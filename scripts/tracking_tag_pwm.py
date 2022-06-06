@@ -45,14 +45,14 @@ class tracking_apriltag(object):
 
 		self.rate = 2.0
 
-		self.M_py = [7.422, 7.422]
-		self.M_py1 =  [7.422, 7.422]
+		self.M_py = [7.25, 7.25]
+		self.M_py1 =  [7.25, 7.25]
 		self.e_py = [0.00, 0.00]
 		self.e_py1 = [0.00, 0.00]
 		self.e_py2 = [0.00, 0.00]
-		self.Kp_py = [0.170, 0.170]#0.125 0.170
-		self.Ki_py = [0.0005, 0.0005]#0.0005
-		self.Kd_py = [0.0001, 0.0001]#0.0001
+		self.Kp_py = [0.115, 0.150]#0.125 0.095
+		self.Ki_py = [0.000, 0.0005]#0.155
+		self.Kd_py = [0, 0.0001]#0.001
 		self.goal_py = [0.000, 0.000]
 
 		self.pitch_list = []
@@ -84,9 +84,10 @@ class tracking_apriltag(object):
 
 				self.e_py[0] = -(90 - int(math.degrees(math.atan2(self.tag_p[2], self.tag_p[1]))))
 				self.e_py[1] = -(90 - int(math.degrees(math.atan2(self.tag_p[2], self.tag_p[0]))))
+
 				
 				
-				#pitch_pid_control
+				
 				self.M_py[0] = self.M_py1[0] + self.Kp_py[0]*(self.e_py[0]-self.e_py1[0]) + self.Ki_py[0]*self.e_py[0] + self.Kd_py[0]*((self.e_py[0]-self.e_py1[0])-(self.e_py1[0]-self.e_py2[0]))
 				
 				if self.M_py[0] >= 10.742:
@@ -94,8 +95,8 @@ class tracking_apriltag(object):
 					self.pitch.start(self.M_py[0])
 					time.sleep(0.0000001)
 
-				elif self.M_py[0] <= 4.5:
-					self.M_py[0] = 4.5
+				elif self.M_py[0] <= 4.50:
+					self.M_py[0] = 4.50
 					self.pitch.start(self.M_py[0])
 					time.sleep(0.0000001)
 
@@ -105,7 +106,7 @@ class tracking_apriltag(object):
 
 				
 				
-				#yaw_pid_control
+				
 				self.M_py[1] = self.M_py1[1] + self.Kp_py[1]*(self.e_py[1] - self.e_py1[1]) + self.Ki_py[1]*self.e_py[1] + self.Kd_py[1]*((self.e_py[1] - self.e_py1[1]) - (self.e_py1[1] - self.e_py2[1]))
 
 
@@ -116,8 +117,8 @@ class tracking_apriltag(object):
 					time.sleep(0.0000001)
 					
 
-				elif self.M_py[1] <= 4.5:
-					self.M_py[1] = 4.5
+				elif self.M_py[1] <= 4.50:
+					self.M_py[1] = 4.50
 					self.yaw.start(self.M_py[1])
 					time.sleep(0.0000001)
 					
@@ -140,13 +141,14 @@ class tracking_apriltag(object):
 				self.pitch_list.append(self.e_py[0])
 				self.yaw_list.append(self.e_py[1])
 				
-
+				
+				print(self.e_py)
 			
 
 		else:
-			self.M_py[0] = 7.422
+			self.M_py[0] = 7.25
 			self.pitch.start(self.M_py[0])
-			self.M_py[1] = 7.422
+			self.M_py[1] = 7.25
 			self.yaw.start(self.M_py[1])
 			self.tag_p_old = [0, 0, 0]
 

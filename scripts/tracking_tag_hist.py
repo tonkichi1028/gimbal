@@ -94,7 +94,7 @@ class tag_mask:
 
 	#image_sub and image_pub
 	def image_callback(self, ros_image,camera_info):
-		input_image = self.bridge.imgmsg_to_cv2(ros_image, "bgr8")
+		input_image = self.bridge.imgmsg_to_cv2(ros_image, "mono8")
 		output_image = self.image_tf(input_image)
 		now = rospy.Time.now()
 		output_image.header.stamp = now
@@ -220,19 +220,8 @@ class tag_mask:
 	#mask processing
 	def image_tf(self, image_opcv):
 
-
-		mask = np.zeros((720, 1280), dtype=np.uint8)
-		mask_size = self.mask_size /2
-		
-		
-		mask_0_u = int(self.uv_0[0]) - mask_size
-		mask_0_v = int(self.uv_0[1]) - mask_size
-		
-		mask_1_u = int(self.uv_0[0]) + mask_size
-		mask_1_v = int(self.uv_0[1]) + mask_size
-		
-		mask = cv2.rectangle(mask, (mask_0_u, mask_0_v), (mask_1_u, mask_1_v), color=255, thickness=-1)
-		image_opcv[mask==0] = [0, 0, 0]
+		clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8,8))
+		cl1 = clahe.apply(image_opcv)
 		result = self.bridge.cv2_to_imgmsg(np.array(image_opcv), "bgr8")
 		return result
 

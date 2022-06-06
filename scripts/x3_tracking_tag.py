@@ -84,6 +84,7 @@ class tracking_apriltag(object):
 
 				self.e_py[0] = -(90 - int(math.degrees(math.atan2(self.tag_p[2], self.tag_p[1]))))
 				self.e_py[1] = -(90 - int(math.degrees(math.atan2(self.tag_p[2], self.tag_p[0]))))
+
 				
 				
 				#pitch_pid_control
