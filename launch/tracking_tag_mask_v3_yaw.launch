@@ -11,7 +11,7 @@
     <param name="camera_info_url" value="package://gimbal/config/c270_gimbal.yaml"/>
   </node>
 
-  <node name="masking_image" pkg="gimbal" type="tracking_tag_mask_v1.py" output="screen"/>
+  <node name="masking_image" pkg="gimbal" type="tracking_tag_mask_v3_yaw.py" output="screen"/>
 
 
   <arg name="launch_prefix" default="" /> <!-- set to value="gdbserver localhost:10000" for remote debugging -->

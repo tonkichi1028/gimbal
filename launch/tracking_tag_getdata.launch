@@ -34,4 +34,6 @@
     <param name="publish_tag_detections_image" type="bool" value="true" />      <!-- default: false -->
   </node>
 
+<node pkg = "gimbal" type = "tracking_tag_getdata.py" name = "tracking_tag_getdata" output = "screen"/>
+
 </launch>
