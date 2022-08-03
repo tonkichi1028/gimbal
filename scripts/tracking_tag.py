@@ -50,10 +50,9 @@ class tracking_apriltag(object):
 		self.e_py = [0.00, 0.00]
 		self.e_py1 = [0.00, 0.00]
 		self.e_py2 = [0.00, 0.00]
-		self.Kp_py = [0.170, 0.170]#0.125 0.170
-		self.Ki_py = [0.0005, 0.0005]#0.0005
-		self.Kd_py = [0.0001, 0.0001]#0.0001
-		self.goal_py = [0.000, 0.000]
+		self.Kp_py = [0.1176, 0.170]#0.125 0.170
+		self.Ki_py = [0.171304, 0.0005]#0.0005
+		self.Kd_py = [0.020183, 0.0001]#0.0001		self.goal_py = [0.000, 0.000]
 
 		self.pitch_list = []
 		self.pitch_list.append(0.00)
@@ -126,7 +125,7 @@ class tracking_apriltag(object):
 					self.yaw.start(self.M_py[1])
 					time.sleep(0.0000001)
 					
-					
+				#print(self.M_py[0])	
 				
 
 				self.M_py1[0] = self.M_py[0]

@@ -52,9 +52,9 @@ class tracking_apriltag(object):
 		self.e_py = [0.00, 0.00]
 		self.e_py1 = [0.00, 0.00]
 		self.e_py2 = [0.00, 0.00]
-		self.Kp_py = [0.115, 0.170]#0.125 0.095
-		self.Ki_py = [0.000, 0.0005]#0.155
-		self.Kd_py = [0, 0.0001]#0.001
+		self.Kp_py = [0.170, 0.170]#0.125 0.095
+		self.Ki_py = [0.0005, 0.0005]#0.155
+		self.Kd_py = [0.0001, 0.0001]#0.001
 		self.goal_py = [0.000, 0.000]
 
 		self.pitch_list = []
@@ -62,7 +62,8 @@ class tracking_apriltag(object):
 		self.yaw_list = []
 		self.yaw_list.append(0.00)
 
-		self.data = [["pos_u"], ["pos_v"]]
+		self.data = [["PWMin_time"], ["tagmove_time"],["tagmove_v"]]
+		self.k = 0
 
 
 	def tag_det_callback(self,data):
@@ -97,15 +98,18 @@ class tracking_apriltag(object):
 				if self.M_py[0] >= 10.742:
 					self.M_py[0] = 10.742
 					self.pitch.start(self.M_py[0])
+					self.data[0].append(time.time())
 					time.sleep(0.0000001)
 
 				elif self.M_py[0] <= 4.5:
 					self.M_py[0] = 4.5
 					self.pitch.start(self.M_py[0])
+					self.data[0].append(time.time())
 					time.sleep(0.0000001)
 
 				else:
 					self.pitch.start(self.M_py[0])
+					self.data[0].append(time.time())
 					time.sleep(0.0000001)
 
 				
@@ -156,10 +160,19 @@ class tracking_apriltag(object):
 
 	def tag_pos_callback(self, pos):
 		if len(pos.detect_positions) >= 1:
-			self.data[0].append(pos.detect_positions[0].x)
-			self.data[1].append(pos.detect_positions[0].y)
+			self.data[1].append(time.time())
+			self.data[2].append(pos.detect_positions[0].y)
+			self.k += 1
+			
 
-			print(self.data)
+
+		if self.k == 50:
+			f = open('/home/wanglab/catkin_ws/src/gimbal/data/2022.07.12_data/mudatime_data.txt', 'w')
+			f.write(str(self.data))
+			f.close()
+			print("finish!!")
+
+			
 		else:
 			pass
 
