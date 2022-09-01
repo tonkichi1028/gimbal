@@ -38,7 +38,6 @@
     <param name="autosize" value="true" />
   </node>
 
-  <node pkg = "storm32_gimbal" type = "storm32_node.py" name = "storm32_node" output = "screen"/>
-  <node name="masking_image" pkg="gimbal" type="tracker_mask.py" output="screen"/>
+  <node name="masking_image" pkg="gimbal" type="tracker_mask_sequential.py" output="screen"/>
 
 </launch>
