@@ -23,6 +23,7 @@ def main():
 
 	pitch.start(5)
 	#yaw.start(4.5)
+	time.sleep(0.0000001)
 	time.sleep(1)
 	pitch.stop()
 	GPIO.cleanup()
