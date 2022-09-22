@@ -396,7 +396,7 @@ class tracking_apriltag(object):
 
 
 	def angle_error(self):
-		self.pitch_error[0] = (90 - int(math.degrees(math.atan2(self.P_Tnew[2], self.P_Tnew[1]))))
+		self.pitch_error[0] = -(90 - int(math.degrees(math.atan2(self.P_Tnew[2], self.P_Tnew[1]))))
 		self.yaw_error[0] = -(90 - int(math.degrees(math.atan2(self.P_Tnew[2], self.P_Tnew[0]))))
 		
 
