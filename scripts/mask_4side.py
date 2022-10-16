@@ -48,21 +48,40 @@ class tracking_apriltag(object):
 		self.Position_old_image = [640, 360]
 		
 		#data
-		self.data = [["Mask_Area[pix]"],["Tag_det_speed"]]
+		self.data = [["time"],["tagdata[pix]"]]
 		self.time = 0
 		self.time_start = 0
 		self.area_mask = 0
 		self.time_old = 0
 		self.margin_u = 640
 		self.margin_v = 360
+		self.fps = 0
 
 
 
 	
 
+	
+	def get_data(self):
+			f = open('/home/wanglab/catkin_ws/src/gimbal/data/2022.10.06_data/Mask_data2_many.txt', 'w')
+			f.write(str(self.data))
+			f.close()
+			print("finish!!!!")
 
 
 	def image_callback(self, ros_image,camera_info):
+		#TIME
+		if self.time_start == 0:
+			self.time_start = time.time()
+		else:
+			self.time = time.time()-self.time_start
+	
+		#print(self.time)
+		if int(self.time) == 20:
+			#pass
+			self.get_data()
+		else:
+			pass
 		
 		input_image = self.bridge.imgmsg_to_cv2(ros_image, "bgr8")
 		output_image = self.image_process(input_image)
@@ -88,7 +107,7 @@ class tracking_apriltag(object):
 		mask0_u1 = int(mask0_u1)
 		mask0_v1 = int(mask0_v1)
 		
-		self.area_mask = (mask0_u1-mask0_u0)*(mask0_v1-mask0_v0)
+		#self.area_mask = (mask0_u1-mask0_u0)*(mask0_v1-mask0_v0)
 
 		mask_image = cv2.rectangle(input_image,(0,0),(1280,mask0_v0),color=0, thickness=-1)
 		mask_image = cv2.rectangle(input_image,(0,mask0_v1),(1280,720),color=0, thickness=-1)
@@ -111,20 +130,31 @@ class tracking_apriltag(object):
 
 		center_u = self.Position_old_image[0]
 		center_v = self.Position_old_image[1]
-#		margin_u = 640
-#		margin_v = 360
-		less_pix = 10
+		margin_u = 640
+		margin_v = 360
+		less_pix = 5
 		
 		mask0_u0 = center_u - self.margin_u 
 		mask0_u1 = center_u + self.margin_u
 		mask0_v0 = center_v - self.margin_v
 		mask0_v1 = center_v + self.margin_v
 		"""
-		mask0_u0 = mask0_u0 + less_pix*self.time 
-		mask0_u1 = mask0_u1 - less_pix*self.time
-		mask0_v0 = mask0_v0 + less_pix*self.time
-		mask0_v1 = mask0_v1 - less_pix*self.time
-		"""
+		mask0_u0 = center_u - margin_u 
+		mask0_u1 = center_u + margin_u
+		mask0_v0 = center_v - margin_v
+		mask0_v1 = center_v + margin_v
+		
+		if less_pix*self.time < 280:
+			mask0_u0 = mask0_u0 + less_pix*self.time 
+			mask0_u1 = mask0_u1 - less_pix*self.time
+#			mask0_v0 = mask0_v0 + less_pix*self.time
+#			mask0_v1 = mask0_v1 - less_pix*self.time
+		else:
+			mask0_u0 = mask0_u0 + less_pix*self.time 
+			mask0_u1 = mask0_u1 - less_pix*self.time
+			mask0_v0 = mask0_v0 + less_pix*self.time -280
+			mask0_v1 = mask0_v1 - less_pix*self.time +280
+		"""		
 		
 		return mask0_u0,mask0_u1,mask0_v0,mask0_v1
 
@@ -135,8 +165,8 @@ class tracking_apriltag(object):
 	def tag_camera_callback(self,data_camera):
 
 		if len(data_camera.detections) >= 1:
-
-				self.data[0].append(self.area_mask)
+			pass
+				
 
 		else:
 			self.margin_u = 640
@@ -152,21 +182,11 @@ class tracking_apriltag(object):
 			self.Position_old_image[0] = data_image.detect_positions[0].x
 			self.Position_old_image[1] = data_image.detect_positions[0].y
 
+			self.data[1].append(self.Position_old_image[0])
+			self.data[0].append(self.time)
 			self.margin_u = 50
 			self.margin_v = 50
-				
-
-			#TIME
-			if self.time_start == 0:
-				self.time_start = time.time()
-			else:
-				self.time_old = self.time
-				self.time = time.time()-self.time_start
-					
-					
-			#get_data
-			if int(self.time) == 2:
-				self.get_data()
+							
 
 		else:
 			self.Position_old_image = [640, 360]
@@ -180,12 +200,6 @@ class tracking_apriltag(object):
 
 
 
-	
-	def get_data(self):
-			f = open('/home/ubuntu/catkin_ws/src/gimbal/data/2022.09.22/data0.txt', 'w')
-			f.write(str(self.data))
-			f.close()
-			print("finish!!!!")
 
 
 

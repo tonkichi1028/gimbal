@@ -60,8 +60,30 @@ class tracking_apriltag(object):
 		self.yaw_I = 0.00
 		self.yaw_D = 0.00
 
+		self.time_start = 0
+		self.time = 0
+		self.data = [["time_uv"],["data_u"],["data_v"]]
+	
+	def get_data(self):
+			f = open('/home/wanglab/catkin_ws/src/gimbal/data/2022.10.03_data/data2_1.txt', 'w')
+			f.write(str(self.data))
+			f.close()
+			print("finish!!!!")
+
+
 
 	def tag_det_callback(self,data):
+		#TIME
+		if self.time_start == 0:
+			self.time_start = time.time()
+		else:
+			self.time = time.time()-self.time_start
+	
+		#print(self.time)
+		if int(self.time) == 20:
+			self.get_data()
+		else:
+			pass
 
 		if len(data.detections) >= 1:
 
@@ -97,16 +119,16 @@ class tracking_apriltag(object):
 		if self.pitch_input_pwm[0] >= 10.742:
 			self.pitch_input_pwm[0] = 10.742
 			self.pitch.start(self.pitch_input_pwm[0])
-			time.sleep(0.0000001)
+			time.sleep(0.02)
 
 		elif self.pitch_input_pwm[0] <= 4.5:
 			self.pitch_input_pwm[0] = 4.5
 			self.pitch.start(self.pitch_input_pwm[0])
-			time.sleep(0.0000001)
+			time.sleep(0.02)
 
 		else:
 			self.pitch.start(self.pitch_input_pwm[0])
-			time.sleep(0.0000001)
+			time.sleep(0.02)
 
 		self.pitch_error[2] = self.pitch_error[1]
 		self.pitch_error[1] = self.pitch_error[0]

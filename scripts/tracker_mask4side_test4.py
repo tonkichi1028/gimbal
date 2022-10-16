@@ -15,6 +15,7 @@ import tf2_ros
 import yaml
 import time
 import RPi.GPIO as GPIO
+import csv
 #msg
 from sensor_msgs.msg import Image, CameraInfo
 from apriltag_ros.msg import AprilTagDetectionArray
@@ -91,18 +92,123 @@ class tracking_apriltag(object):
 		self.f_y = self.mtx[1, 1]
 		self.color = (0,0,0)
 
-		#fps
-		self.d = deque()
-		self.delta_t = 0
-
 		#data
-		self.data = [["time_uv"],["data_u"],["data_v"]]
+		self.data = []
+		self.TagPosImg_data = [["time"],["image_u"],["image_v"]]
+		self.predictPos_data = [["time"],["predict_u"],["predict_v"]]
+		self.deltaPos_data = [["time"],["delta_u"],["delta_v"]]
+		self.pwm_data = [["time"],["pwm_pitch"],["time"],["pwm_yaw"]]
+		self.Wide_Error_data = [["time"],["Wide_Error_u0"],["Wide_Error_u1"],["Wide_Error_v0"],["Wide_Error_v1"]]
+		self.Wide_Move_data = [["time"],["Wide_Move_u0"],["Wide_Move_u1"],["Wide_Move_v0"],["Wide_Move_v1"]]
+		self.Wide_Gimbal_data = [["time"],["Wide_Gimbal_u0"],["Wide_Gimbal_u1"],["Wide_Gimbal_v0"],["Wide_Gimbal_v1"]]
+		self.TagPosCam_data = [["time"],["camera_x"],["camera_y"],["camera_z"]]
+		self.Rate_recognition = [["time"],["recognition"]]
+
 		self.i = 0
 		self.time = 0
 		self.time_start = 0
+		self.flag = 0
+		self.recogniton = 0
 		
-	
 
+	def pitch_pid_controller(self):
+		P = 0.006
+		I = 0.00#3
+		#I = 0.0009
+		D = 0.00#25
+
+		P = P*(self.pitch_error[0]-self.pitch_error[1])
+		I = I*self.pitch_error[0]
+		D = D*((self.pitch_error[0]-self.pitch_error[1])-(self.pitch_error[1]-self.pitch_error[2]))
+
+		self.pitch_input_pwm =  self.pitch_input_pwm + P + I + D
+					
+		if self.pitch_input_pwm >= 10.742:
+			self.pitch_input_pwm = 10.742
+			self.pitch.start(self.pitch_input_pwm)
+			time.sleep(0.0000001)
+
+		elif self.pitch_input_pwm <= 4.5:
+			self.pitch_input_pwm = 4.5
+			self.pitch.start(self.pitch_input_pwm)
+			time.sleep(0.0000001)
+
+		else:
+			self.pitch.start(self.pitch_input_pwm)
+			time.sleep(0.0000001)
+
+		self.pwm_data[0].append(self.time)
+		self.pwm_data[1].append(self.pitch_input_pwm)
+
+		self.pitch_error[2] = self.pitch_error[1]
+		self.pitch_error[1] = self.pitch_error[0]
+
+
+
+
+
+
+
+	def yaw_pid_controller(self):
+		P = 0.0105
+		I = 0.000#8
+		D = 0.000#85
+
+		P = P*(self.yaw_error[0]-self.yaw_error[1])
+		I = I*self.yaw_error[0]
+		D = D*((self.yaw_error[0]-self.yaw_error[1])-(self.yaw_error[1]-self.yaw_error[2]))
+
+		self.yaw_input_pwm = self.yaw_input_pwm + P + I + D
+		
+		if self.yaw_input_pwm >= 10.742:
+			self.yaw_input_pwm = 10.742
+			self.yaw.start(self.yaw_input_pwm)
+			time.sleep(0.0000001)
+			
+		elif self.yaw_input_pwm <= 4.5:
+			self.yaw_input_pwm = 4.5
+			self.yaw.start(self.yaw_input_pwm)
+			time.sleep(0.0000001)
+
+		else:
+			self.yaw.start(self.yaw_input_pwm)
+			time.sleep(0.0000001)
+		#print(self.yaw_error)
+		#print(self.yaw_input_pwm)
+
+		self.pwm_data[2].append(self.time)
+		self.pwm_data[3].append(self.yaw_input_pwm)
+
+		self.yaw_error[2] = self.yaw_error[1]
+		self.yaw_error[1] = self.yaw_error[0]
+
+
+	
+	def get_data(self):		
+		f = open('/home/wanglab/catkin_ws/src/gimbal/data/2022.10.13_data/metro100_trackingPID_data0.csv', 'w')
+		
+		self.data.extend(self.TagPosImg_data)
+		self.data.extend(self.predictPos_data)
+		self.data.extend(self.deltaPos_data)
+		self.data.extend(self.pwm_data)
+		self.data.extend(self.Wide_Error_data)
+		self.data.extend(self.Wide_Move_data)
+		self.data.extend(self.Wide_Gimbal_data)
+		self.data.extend(self.TagPosCam_data)
+		#self.data.extend(self.Rate_recognition)
+		
+#		data_all = np.array(self.data).T
+#		print(data_all)
+#		data_all = data_all.tolist()
+		data_all = self.data
+		writer = csv.writer(f)
+
+		for data in data_all:
+			writer.writerow(data)
+		f.close()
+		print("finish!!!!\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n")
+
+		self.flag = 1
 
 
 	
@@ -110,8 +216,23 @@ class tracking_apriltag(object):
 
 
 	def image_callback(self, ros_image,camera_info):
+				
+		#TIME
+		if self.time_start == 0:
+			self.time_start = time.time()
+		else:
+			self.time = time.time()-self.time_start
+	
+		#get_data
+		if int(self.time) == 10:
+			if self.flag == 0:
+				self.get_data()
+			else:
+				pass
+		else:
+			pass
 		
-		#self.time = time.time()
+		
 		input_image = self.bridge.imgmsg_to_cv2(ros_image, "bgr8")
 		output_image = self.image_process(input_image)
 		now = rospy.Time.now()
@@ -130,8 +251,28 @@ class tracking_apriltag(object):
 	def image_process(self, input_image):
 		
 		mask0_u0,mask0_u1,mask0_v0,mask0_v1 = self.Wide_Mask()
-		#mask0_u0,mask0_u1,mask0_v0,mask0_v1 = self.Wide_Tag(mask0_u0,mask0_u1,mask0_v0,mask0_v1)
-		#mask0_u0,mask0_u1,mask0_v0,mask0_v1 = self.Wide_Gimbal(mask0_u0,mask0_u1,mask0_v0,mask0_v1)
+		self.Wide_Error_data[0].append(self.time)
+		self.Wide_Error_data[1].append(mask0_u0)
+		self.Wide_Error_data[2].append(mask0_u1)
+		self.Wide_Error_data[3].append(mask0_v0)
+		self.Wide_Error_data[4].append(mask0_v1)
+
+		mask0_u0,mask0_u1,mask0_v0,mask0_v1 = self.Wide_Tag(mask0_u0,mask0_u1,mask0_v0,mask0_v1)
+		self.Wide_Move_data[0].append(self.time)
+		self.Wide_Move_data[1].append(mask0_u0)
+		self.Wide_Move_data[2].append(mask0_u1)
+		self.Wide_Move_data[3].append(mask0_v0)
+		self.Wide_Move_data[4].append(mask0_v1)
+
+
+		mask0_u0,mask0_u1,mask0_v0,mask0_v1 = self.Wide_Gimbal(mask0_u0,mask0_u1,mask0_v0,mask0_v1)
+		self.Wide_Gimbal_data[0].append(self.time)
+		self.Wide_Gimbal_data[1].append(mask0_u0)
+		self.Wide_Gimbal_data[2].append(mask0_u1)
+		self.Wide_Gimbal_data[3].append(mask0_v0)
+		self.Wide_Gimbal_data[4].append(mask0_v1)
+
+
 		
 		mask0_u0 = int(mask0_u0)
 		mask0_v0 = int(mask0_v0)
@@ -244,34 +385,38 @@ class tracking_apriltag(object):
 	def tag_camera_callback(self,data_camera):
 
 		if len(data_camera.detections) >= 1:
-
+			self.recognition = 1
+			self.Rate_recognition[0].append(self.time)
+			self.Rate_recognition[1].append(self.recognition)
 
 			if self.flag_camera == 0:
-				#fps
-				self.d.append(time.time())
 				#tag
 				self.Position_old_camera = data_camera.detections[0].pose.pose.pose.position
 				self.flag_camera = 1
 
 			else:
-				#fps
-				self.d.append(time.time())
-				self.delta_t = self.d[-1] - self.d[0]
-				self.d.popleft()
 				#tag
 				Position_now_camera = data_camera.detections[0].pose.pose.pose.position
+				self.TagPosCam_data[0].append(self.time)
+				self.TagPosCam_data[1].append(Position_now_camera.x)
+				self.TagPosCam_data[2].append(Position_now_camera.y)
+				self.TagPosCam_data[3].append(Position_now_camera.z)
+
+				
 				self.Position_predicter_camera(Position_now_camera)
 
 				self.Position_old_camera = Position_now_camera
 
 		else:
-			#self.uv_0 = np.float64([640, 360])
-			#self.uv_1 = np.float64([640, 360])
 			self.mask_size = 1280
 			
 
 			self.Position_old_camera = [0, 0, 0]
 			self.flag_camera = 0
+
+			self.recognition = 0
+			self.Rate_recognition[0].append(self.time)
+			self.Rate_recognition[1].append(self.recognition)
 
 
 
@@ -291,30 +436,20 @@ class tracking_apriltag(object):
 				#tag
 				Position_now_image = data_image.detect_positions[0]
 
-				self.data[0].append(self.time)
-				self.data[1].append(640 - Position_now_image.x)
-				self.data[2].append(360 - Position_now_image.y)
-
+				self.TagPosImg_data[0].append(self.time)
+				self.TagPosImg_data[1].append(640 - Position_now_image.x)
+				self.TagPosImg_data[2].append(360 - Position_now_image.y)
+				
 
 				self.Position_predicter_image(Position_now_image)
 				self.pixel_error()
 
 				#gimbal_controller
-				self.pitch_pid_controller()
+				#self.pitch_pid_controller()
 				self.yaw_pid_controller()
 				
-				#TIME
-				if self.time_start == 0:
-					self.time_start = time.time()
-				else:
-					self.time = time.time()-self.time_start
-					
-					
+	
 				
-				if int(self.time) == 15:
-					self.get_data()
-				else:
-					pass
 
 				
 				self.Position_old_image = Position_now_image
@@ -342,72 +477,6 @@ class tracking_apriltag(object):
 
 
 
-
-
-	def pitch_pid_controller(self):
-		P = 0.006
-		I = 0.00#3
-		#I = 0.0009
-		D = 0.00#25
-
-		P = P*(self.pitch_error[0]-self.pitch_error[1])
-		I = I*self.pitch_error[0]
-		D = D*((self.pitch_error[0]-self.pitch_error[1])-(self.pitch_error[1]-self.pitch_error[2]))
-
-		self.pitch_input_pwm =  self.pitch_input_pwm + P + I + D
-					
-		if self.pitch_input_pwm >= 10.742:
-			self.pitch_input_pwm = 10.742
-			self.pitch.start(self.pitch_input_pwm)
-			time.sleep(0.0001)
-
-		elif self.pitch_input_pwm <= 4.5:
-			self.pitch_input_pwm = 4.5
-			self.pitch.start(self.pitch_input_pwm)
-			time.sleep(0.0001)
-
-		else:
-			self.pitch.start(self.pitch_input_pwm)
-			time.sleep(0.0001)
-
-		
-		self.pitch_error[2] = self.pitch_error[1]
-		self.pitch_error[1] = self.pitch_error[0]
-
-
-
-
-
-
-
-	def yaw_pid_controller(self):
-		P = 0.00582
-		I = 0.0005
-		D = 0.00065
-
-		P = P*(self.yaw_error[0]-self.yaw_error[1])
-		I = I*self.yaw_error[0]
-		D = D*((self.yaw_error[0]-self.yaw_error[1])-(self.yaw_error[1]-self.yaw_error[2]))
-
-		self.yaw_input_pwm = self.yaw_input_pwm + P + I + D
-		
-		if self.yaw_input_pwm >= 10.742:
-			self.yaw_input_pwm = 10.742
-			self.yaw.start(self.yaw_input_pwm)
-			time.sleep(0.0000001)
-			
-		elif self.yaw_input_pwm <= 4.5:
-			self.yaw_input_pwm = 4.5
-			self.yaw.start(self.yaw_input_pwm)
-			time.sleep(0.0000001)
-
-		else:
-			self.yaw.start(self.yaw_input_pwm)
-			time.sleep(0.0000001)
-		#print(self.yaw_error)
-		#print(self.yaw_input_pwm)
-		self.yaw_error[2] = self.yaw_error[1]
-		self.yaw_error[1] = self.yaw_error[0]
 
 
 
@@ -438,15 +507,19 @@ class tracking_apriltag(object):
 		self.Position_predicted_image[0] = Position_now_image.x + self.delta_Position_image[0]
 		self.Position_predicted_image[1] = Position_now_image.y + self.delta_Position_image[1]
 
+		self.predictPos_data[0].append(self.time)
+		self.predictPos_data[1].append(640-self.Position_predicted_image[0])
+		self.predictPos_data[2].append(360-self.Position_predicted_image[1])
 
-
-
+		self.deltaPos_data[0].append(self.time)
+		self.deltaPos_data[1].append(self.delta_Position_image[0])
+		self.deltaPos_data[2].append(self.delta_Position_image[1])
 
 
 
 
 	def pixel_error(self):
-		self.pitch_error[0] = (360 - self.Position_predicted_image[1])
+		self.pitch_error[0] = -(360 - self.Position_predicted_image[1])
 		self.yaw_error[0] = (640 - self.Position_predicted_image[0])
 		
 		
@@ -484,13 +557,6 @@ class tracking_apriltag(object):
 
 
 	"""
-	
-	def get_data(self):
-			f = open('/home/wanglab/catkin_ws/src/gimbal/data/2022.09.15_data/tag_position_image_mask0_1.txt', 'w')
-			f.write(str(self.data))
-			f.close()
-			print("finish!!!!")
-
 
 
 
