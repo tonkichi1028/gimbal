@@ -113,7 +113,7 @@ class tracking_apriltag(object):
 
 	
 	def get_data(self):		
-		f = open('/home/wanglab/catkin_ws/src/gimbal/data/2022.10.13_data/metro100_tracking_data.csv', 'w')
+		f = open('/home/wanglab/catkin_ws/src/gimbal/data/2022.10.17_data/UAVtracking_data0.csv', 'w')
 
 		self.data.extend(self.TagPosImg_data)
 		self.data.extend(self.predictPos_data)
@@ -152,7 +152,7 @@ class tracking_apriltag(object):
 			self.time = time.time()-self.time_start
 	
 		#get_data
-		if int(self.time) == 2:
+		if int(self.time) == 15:
 			if self.flag == 0:
 				self.get_data()
 			else:
