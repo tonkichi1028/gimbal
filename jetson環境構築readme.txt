@@ -15,3 +15,15 @@ https://tiryoh.hateblo.jp/entry/2019/12/24/221411
 https://github.com/soramame1625/apriltag_ros
 
 build errorが出るときはエラーファイルのpythonのバージョンを変更
+
+
+・jtopによる負荷状況の表示
+https://www.fabshop.jp/jetson-nano-jtop/
+
+・ファンモードをquietからcoolへ
+$ sudo /usr/sbin/nvpmodel -d cool
+現在のファンモードを確認
+$ sudo /usr/sbin/nvpmodel -q
+
+・ファンモード最大
+$ sudo sh -c 'echo 255 > /sys/devices/pwm-fan/target_pwm'
