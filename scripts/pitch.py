@@ -21,10 +21,10 @@ def main():
 	GPIO.setup(yaw_pin, GPIO.OUT, initial=GPIO.HIGH)
 	yaw = GPIO.PWM(yaw_pin, 50)
 
-	pitch.start(8)
+	pitch.start(7.44)
 	#pitch.start(7)
 	#time.sleep(0.0000001)
-	time.sleep(0.5)
+	time.sleep(2)
 	pitch.stop()
 	GPIO.cleanup()
 

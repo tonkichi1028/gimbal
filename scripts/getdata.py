@@ -16,6 +16,7 @@ import yaml
 import time
 import RPi.GPIO as GPIO
 import csv
+import matplotlib.pyplot as plt
 #msg
 from sensor_msgs.msg import Image, CameraInfo
 from apriltag_ros.msg import AprilTagDetectionArray
@@ -92,42 +93,67 @@ class tracking_apriltag(object):
 		self.f_y = self.mtx[1, 1]
 		self.color = (0,0,0)
 
-		#data
+		# data
 		self.data = []
 		self.TagPosImg_data = [["time"],["image_u"],["image_v"]]
 		self.predictPos_data = [["time"],["predict_u"],["predict_v"]]
 		self.deltaPos_data = [["time"],["delta_u"],["delta_v"]]
 		self.pwm_data = [["time"],["pwm_pitch"],["time"],["pwm_yaw"]]
+		self.yaw_pid = [["time"],["P"],["I"],["D"]]
 		self.Wide_Error_data = [["time"],["Wide_Error_u0"],["Wide_Error_u1"],["Wide_Error_v0"],["Wide_Error_v1"]]
 		self.Wide_Move_data = [["time"],["Wide_Move_u0"],["Wide_Move_u1"],["Wide_Move_v0"],["Wide_Move_v1"]]
 		self.Wide_Gimbal_data = [["time"],["Wide_Gimbal_u0"],["Wide_Gimbal_u1"],["Wide_Gimbal_v0"],["Wide_Gimbal_v1"]]
 		self.TagPosCam_data = [["time"],["camera_x"],["camera_y"],["camera_z"]]
 		self.Rate_recognition = [["time"],["recognition"]]
+		
 
 		self.i = 0
 		self.time = 0
 		self.time_start = 0
-		self.flag = 0
 		self.recogniton = 0
-		
 
-	
-	def get_data(self):		
-		f = open('/home/wanglab/catkin_ws/src/gimbal/data/2022.10.17_data/UAVtracking_data0.csv', 'w')
+		self.data_flag = 0
+		self.pitch_graph_flag = 0
+		self.yaw_graph_flag = 0
+		
+		# Pitch PID
+		self.pitch_P = 0.007
+		self.pitch_I = 0.00
+		self.pitch_D = 0.00025
+
+		# yaw PID
+		self.yaw_P = 0.007
+		self.yaw_I = 0.0000#5#1
+		self.yaw_D = 0.00013#65#3#2
+		#self.yaw_P = 0.00582
+		#self.yaw_I = 0.0005#5#1
+		#self.yaw_D = 0.00065#65#3#2
+
+		self.save_time = 15
+
+
+	# Save Data	
+	def get_data(self):
+		p = self.pitch_P
+		i = self.pitch_I
+		d = self.pitch_D
+		
+		#f = open('/home/wanglab/catkin_ws/src/gimbal/data/2022.11.08/Yaw ' + 'P_%1.5f'%p + 'I_%1.5f'%i + 'D_%1.5f'%d + '.csv', 'w')
+		f = open('/home/wanglab/catkin_ws/src/gimbal/data/2022.11.08/data3.csv', 'w')
 
 		self.data.extend(self.TagPosImg_data)
 		self.data.extend(self.predictPos_data)
 		self.data.extend(self.deltaPos_data)
 		self.data.extend(self.pwm_data)
+		self.data.extend(self.yaw_pid)
+		"""
 		self.data.extend(self.Wide_Error_data)
 		self.data.extend(self.Wide_Move_data)
 		self.data.extend(self.Wide_Gimbal_data)
 		self.data.extend(self.TagPosCam_data)
+		"""
 		self.data.extend(self.Rate_recognition)
 		
-#		data_all = np.array(self.data).T
-#		print(data_all)
-#		data_all = data_all.tolist()
 		data_all = self.data
 		writer = csv.writer(f)
 
@@ -136,13 +162,103 @@ class tracking_apriltag(object):
 		f.close()
 		print("finish!!!!\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n")
 
-		self.flag = 1
+		self.data_flag = 1
+
+
+	# Save Pitch Graph
+	def get_pitch_graph(self):
+		p = self.pitch_P
+		i = self.pitch_I
+		d = self.pitch_D
+
+		t1 = self.TagPosImg_data[0][1:]
+		v_axis = self.TagPosImg_data[2][1:]
+
+		t2 = self.pwm_data[0][1:]
+		pwm = self.pwm_data[1][1:]
+
+		fig = plt.figure(linewidth=1)
+
+		# 上
+		# pid line
+		ax1 = fig.add_subplot(2, 1, 1)
+		ax1.set_title("P : %1.5f   "%p + "I : %1.5f   "%i + "D : %1.5f"%d, fontsize=22)
+		ax1.set_xlabel('t[s]', fontsize=18)
+		ax1.set_ylabel('v-axis[pix]', fontsize=18)
+		ax1.plot(t1, v_axis, marker='.', label = "response")
+		# center line
+		center = 0
+		ax1.axhline(center, ls = "--",color = "black",  label = "center")
+		ax1.legend(loc="upper right")
+
+		# 下
+		# pwm line
+		ax2 = fig.add_subplot(2, 1, 2)
+		ax2.set_title('pwm', fontsize=22)
+		ax2.set_xlabel("t[s]", fontsize=18)
+		ax2.set_ylabel("pwm", fontsize=18)
+		ax2.plot(t2, pwm, marker='.', label = "pwm")
+		# center line
+		center1 = 7.226
+		center2 = 7.618
+		ax2.axhline(center1, ls = "--",color = "black",  label = "center")
+		ax2.axhline(center2, ls = "--",color = "black",  label = "center")
+		ax2.legend(loc="upper right")
+		fig.tight_layout()
+		
+		fig.savefig("/home/wanglab/catkin_ws/src/gimbal/Image/2022.11.02/Pitch " + "P_%1.5f"%p + "I_%1.5f"%i + "D_%1.5f"%d + ".png", bbox_inches='tight')
+		plt.close()
+		self.pitch_graph_flag = 1
+
+
+	# Save Yaw Graph	
+	def get_yaw_graph(self):
+		p = self.yaw_P
+		i = self.yaw_I
+		d = self.yaw_D
+
+		t1 = self.TagPosImg_data[0][1:]
+		u_axis = self.TagPosImg_data[1][1:]
+
+		t2 = self.pwm_data[2][1:]
+		pwm = self.pwm_data[3][1:]
+
+		fig = plt.figure(linewidth=1)
+
+		# 上
+		# pid line
+		ax1 = fig.add_subplot(2, 1, 1)
+		ax1.set_title("P : %1.5f   "%p + "I : %1.5f   "%i + "D : %1.5f"%d, fontsize=22)
+		ax1.set_xlabel('t[s]', fontsize=18)
+		ax1.set_ylabel('u-axis[pix]', fontsize=18)
+		ax1.plot(t1, u_axis, marker='.', label = "response")
+		# center line
+		center = 0
+		ax1.axhline(center, ls = "--",color = "black",  label = "center")
+		ax1.legend(loc="upper right")
+
+		# 下
+		# pwm line
+		ax2 = fig.add_subplot(2, 1, 2)
+		ax2.set_title('pwm', fontsize=22)
+		ax2.set_xlabel("t[s]", fontsize=18)
+		ax2.set_ylabel("pwm", fontsize=18)
+		ax2.plot(t2, pwm, marker='.', label = "pwm")
+		# center line
+		center1 = 7.226
+		center2 = 7.618
+		ax2.axhline(center1, ls = "--",color = "black",  label = "center")
+		ax2.axhline(center2, ls = "--",color = "black",  label = "center")
+		ax2.legend(loc="upper right")
+		fig.tight_layout()
+
+		#fig.savefig("/home/wanglab/catkin_ws/src/gimbal/Image/2022.11.02/Yaw " + "P_%1.5f"%p + "I_%1.5f"%i + "D_%1.5f"%d + ".png", bbox_inches='tight')
+		fig.savefig("/home/wanglab/catkin_ws/src/gimbal/Image/2022.11.08/Yaw " + "P_%1.5f"%p + "I_%1.5f"%i + "D_%1.5f"%d + ".png", bbox_inches='tight')
+		self.yaw_graph_flag = 1
 
 
 	
-
-
-
+	# Callback CameraImage
 	def image_callback(self, ros_image,camera_info):
 				
 		#TIME
@@ -151,15 +267,21 @@ class tracking_apriltag(object):
 		else:
 			self.time = time.time()-self.time_start
 	
-		#get_data
-		if int(self.time) == 15:
-			if self.flag == 0:
-				self.get_data()
-			else:
-				pass
-		else:
-			pass
-		
+
+		"""		
+		# get_pitch_graph
+		if int(self.time) == self.save_time:
+			if self.pitch_graph_flag == 0:
+				self.get_pitch_graph()
+		"""
+
+		# get_yaw_graph
+		if int(self.time) == self.save_time:
+			if self.yaw_graph_flag == 0:
+				self.get_yaw_graph()
+				# get_data
+				if self.data_flag == 0:
+					self.get_data()
 		
 		input_image = self.bridge.imgmsg_to_cv2(ros_image, "bgr8")
 		output_image = self.image_process(input_image)
@@ -192,15 +314,12 @@ class tracking_apriltag(object):
 		self.Wide_Move_data[3].append(mask0_v0)
 		self.Wide_Move_data[4].append(mask0_v1)
 
-
 		mask0_u0,mask0_u1,mask0_v0,mask0_v1 = self.Wide_Gimbal(mask0_u0,mask0_u1,mask0_v0,mask0_v1)
 		self.Wide_Gimbal_data[0].append(self.time)
 		self.Wide_Gimbal_data[1].append(mask0_u0)
 		self.Wide_Gimbal_data[2].append(mask0_u1)
 		self.Wide_Gimbal_data[3].append(mask0_v0)
 		self.Wide_Gimbal_data[4].append(mask0_v1)
-
-
 		
 		mask0_u0 = int(mask0_u0)
 		mask0_v0 = int(mask0_v0)
@@ -308,7 +427,7 @@ class tracking_apriltag(object):
 
 
 
-
+	# Callback Tag Camera
 
 	def tag_camera_callback(self,data_camera):
 
@@ -349,7 +468,7 @@ class tracking_apriltag(object):
 
 
 
-
+	# Callback Tag Camera
 
 	def tag_image_callback(self, data_image):
 
@@ -372,7 +491,6 @@ class tracking_apriltag(object):
 				self.Position_predicter_image(Position_now_image)
 				self.pixel_error()
 
-				#gimbal_controller
 				self.pitch_pid_controller()
 				self.yaw_pid_controller()
 				
@@ -384,8 +502,7 @@ class tracking_apriltag(object):
 
 		else:
 			
-			#self.uv_0 = np.float64([640, 360])
-			#self.uv_1 = np.float64([640, 360])
+
 			self.mask_size = 1280
 			
 			self.pitch_input_pwm = 7.422
@@ -405,13 +522,12 @@ class tracking_apriltag(object):
 
 
 
-
+	# pitch controller
 
 	def pitch_pid_controller(self):
-		P = 0.007
-		I = 0.00#3
-		#I = 0.0009
-		D = 0.00025#25
+		P = self.pitch_P
+		I = self.pitch_I
+		D = self.pitch_D
 
 		P = P*(self.pitch_error[0]-self.pitch_error[1])
 		I = I*self.pitch_error[0]
@@ -443,20 +559,17 @@ class tracking_apriltag(object):
 
 
 
-
+	# yaw controller
 
 	def yaw_pid_controller(self):
-		#P = 0.00582
-		#I = 0.0005
-		#D = 0.00065
-		P = 0.007
-		I = 0.000
-		D = 0.00013
-
+		P = self.yaw_P
+		I = self.yaw_I
+		D = self.yaw_D
+		
 		P = P*(self.yaw_error[0]-self.yaw_error[1])
 		I = I*self.yaw_error[0]
 		D = D*((self.yaw_error[0]-self.yaw_error[1])-(self.yaw_error[1]-self.yaw_error[2]))
-
+		
 		self.yaw_input_pwm = self.yaw_input_pwm + P + I + D
 		
 		if self.yaw_input_pwm >= 10.742:
@@ -472,19 +585,28 @@ class tracking_apriltag(object):
 		else:
 			self.yaw.start(self.yaw_input_pwm)
 			time.sleep(0.0000001)
-		#print(self.yaw_error)
-		#print(self.yaw_input_pwm)
+
+		"""
+		self.yaw_input_pwm = 8.4
+		self.yaw.start(self.yaw_input_pwm)
+		time.sleep(0.000000)
+		"""
 
 		self.pwm_data[2].append(self.time)
 		self.pwm_data[3].append(self.yaw_input_pwm)
 
+		self.yaw_pid[0].append(self.time)
+		self.yaw_pid[1].append(P)
+		self.yaw_pid[2].append(I)
+		self.yaw_pid[3].append(D)
+		#print(self.yaw_pid[1])
 		self.yaw_error[2] = self.yaw_error[1]
 		self.yaw_error[1] = self.yaw_error[0]
+		
 
 
 
-
-
+	# predicter
 
 	def Position_predicter_camera(self,Position_now_camera):
 		self.delta_Position_camera[0] = Position_now_camera.x - self.Position_old_camera.x
@@ -496,11 +618,6 @@ class tracking_apriltag(object):
 		self.Position_predicted_camera[2] = Position_now_camera.z + self.delta_Position_camera[2]
 
 		self.mask_size = 120*(1/self.Position_predicted_camera[2])
-
-
-
-
-
 
 
 	def Position_predicter_image(self,Position_now_image):
@@ -520,53 +637,12 @@ class tracking_apriltag(object):
 
 
 
+	# error
+
 
 	def pixel_error(self):
 		self.pitch_error[0] = -(360 - self.Position_predicted_image[1])
 		self.yaw_error[0] = (640 - self.Position_predicted_image[0])
-		
-		
-
-
-
-
-
-	"""
-	def z_change(self):
-		self.uv_0, jac = cv2.projectPoints(self.xyz_0, self.rvec, self.tvec, self.mtx, self.dist)
-		self.uv_0 = self.uv_0[0][0]
-
-		self.uv_1, jac = cv2.projectPoints(self.xyz_1, self.rvec, self.tvec, self.mtx, self.dist)
-		self.uv_1 = self.uv_1[0][0]
-
-
-
-
-	
-	def gimbal_callback(self,Quaternion):
-		self.gimbal_euler = self.quaternion_to_euler(Quaternion.quaternion.x, Quaternion.quaternion.y, Quaternion.quaternion.z, Quaternion.quaternion.w)
-
-
-
-
-
-
-	def quaternion_to_euler(self,q_x,q_y,q_z,q_w):
-		euler = tf.transformations.euler_from_quaternion((q_x, q_y, q_z, q_w))
-		euler = [euler[0], euler[1], euler[2]]
-		return euler
-
-
-
-
-	"""
-
-
-
-
-		
-
-
 
 	def cleanup(self):
 		cv2.destroyAllWindows()
