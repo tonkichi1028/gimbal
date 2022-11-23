@@ -27,3 +27,8 @@ $ sudo /usr/sbin/nvpmodel -q
 
 ・ファンモード最大
 $ sudo sh -c 'echo 255 > /sys/devices/pwm-fan/target_pwm'
+
+・パフォーマンスの最大化
+https://developer.ridgerun.com/wiki/index.php/Xavier/JetPack_5.0.2/Performance_Tuning/Maximizing_Performance
+jtopの5CTRLでも変更可能
+jetson_clocks大事
