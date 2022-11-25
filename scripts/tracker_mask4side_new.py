@@ -59,12 +59,13 @@ class tracking_apriltag(object):
 		GPIO.setup(pitch_pin, GPIO.OUT, initial=GPIO.HIGH)
 		self.pitch = GPIO.PWM(pitch_pin, 50)
 		GPIO.setup(yaw_pin, GPIO.OUT, initial=GPIO.HIGH)
-		self.yaw = GPIO.PWM(yaw_pin, 50)
+		self.yaw = GPIO.PWM(yaw_pin, 400)
 
 
 		# pwm_input_value, [0]=t, [1]=t-1, center_value=7.422
 		self.pitch_input_pwm = 7.422
-		self.yaw_input_pwm = 7.422
+		self.yaw_input_pwm = 60.156
+		self.stop_pwm = 60.156
 
 		# error_value_deg, [0]=t, [1]=t-1, [2]=t-2
 		self.pitch_error = [0.00, 0.00, 0.00]
@@ -99,7 +100,7 @@ class tracking_apriltag(object):
 		camera_info.header.stamp = now
 		self.image_pub.publish(output_image)
 		self.info_pub.publish(camera_info)
-		print(self.yaw_input_pwm)
+		#print(self.yaw_input_pwm)
 
 
 	def image_process(self, input_image):
@@ -209,9 +210,9 @@ class tracking_apriltag(object):
 			self.pitch.start(self.pitch_input_pwm)
 			self.pitch_error = [0.00, 0.00, 0.00]
 
-			self.yaw_input_pwm = 7.617
+			self.yaw_input_pwm = 60.156
 			self.yaw.start(self.yaw_input_pwm)
-			time.sleep(0.0000001)
+			time.sleep(0.0001)
 			self.yaw_error = [0.00, 0.00, 0.00]
 
 			self.Position_old_image = [0, 0, 0]
@@ -290,9 +291,10 @@ class tracking_apriltag(object):
 			self.yaw.start(self.yaw_input_pwm)
 			time.sleep(0.0000001)
 		"""
-		self.yaw_input_pwm = 7.617
+		self.yaw_input_pwm = 60.156
 		self.yaw.start(self.yaw_input_pwm)
 		time.sleep(0.0000001)
+		#time.sleep(0.0025)
 		
 		self.yaw_error[2] = self.yaw_error[1]
 		self.yaw_error[1] = self.yaw_error[0]

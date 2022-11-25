@@ -12,21 +12,22 @@ def main():
 	GPIO.setmode(GPIO.BOARD)
 
 	GPIO.setup(yaw_pin, GPIO.OUT, initial=GPIO.HIGH)
-	yaw = GPIO.PWM(yaw_pin, 430)
+	yaw = GPIO.PWM(yaw_pin, 100)
 	
-	for i in range(100):
-		n = i
-		yaw.start(59.1793)
-		#time.sleep(0.0025)
-		print(n)
+	"""	
+	for i in range(10000):
+		#n = i
+		yaw.start(15.04)
+		time.sleep(1/10)
+		#print(n)
 	#time.sleep(1)
 	yaw.stop()
 	GPIO.cleanup()
 	"""
-	yaw.start(63.479)
+	yaw.start(15.04)
 	time.sleep(1)
 	yaw.stop()
 	GPIO.cleanup()
-	"""
+	
 if __name__ == '__main__':
 	main()
