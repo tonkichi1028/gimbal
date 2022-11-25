@@ -38,6 +38,6 @@
     <param name="autosize" value="true" />
   </node>
 
-  <node name="masking_image" pkg="gimbal" type="tracker_mask4side_new.py" output="screen"/>
+  <node name="masking_image" pkg="gimbal" type="test.py" output="screen"/>
 
 </launch>
