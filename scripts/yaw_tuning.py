@@ -79,13 +79,11 @@ class tracking_apriltag(object):
 		self.error_data = [["time"],["error0"]]
 
 		# yaw PID
-		self.yaw_P = 0.1
-		self.yaw_I = 0.00015
-		self.yaw_D = 0.0004
+		self.yaw_P = 0.053
+		self.yaw_I = 0.000#1
+		self.yaw_D = 0.00#3
 
 		self.save_time = 7
-
-		self.controll_Hz = 500
 
 	def timer(self,event=None):	
 		#TIME
@@ -109,7 +107,7 @@ class tracking_apriltag(object):
 		i = self.yaw_I
 		d = self.yaw_D
 		
-		f = open('/home/wanglab/catkin_ws/src/gimbal/data/2022.11.21/Yaw ' + 'P_%1.5f'%p + 'I_%1.5f'%i + 'D_%1.5f'%d + '.csv', 'w')
+		f = open('/home/wanglab/catkin_ws/src/gimbal/data/2022.11.21/Yaw ' + 'P_%1.5f'%p + 'I_%1.5f'%i + 'D_%1.5f'%d + 'fix.csv', 'w')
 
 		self.data.extend(self.TagPosImg_data)
 		self.data.extend(self.pwm_data)
@@ -129,7 +127,6 @@ class tracking_apriltag(object):
 		p = self.yaw_P
 		i = self.yaw_I
 		d = self.yaw_D
-		Hz = self.controll_Hz
 
 		t1 = self.TagPosImg_data[0][1:]
 		u_axis = self.TagPosImg_data[1][1:]
@@ -147,8 +144,8 @@ class tracking_apriltag(object):
 		ax1.legend(loc="upper right")
 		fig.tight_layout()
 
-		fig.savefig("/home/wanglab/catkin_ws/src/gimbal/Image/2022.11.23/metro120.png", bbox_inches='tight')
-		#fig.savefig("/home/wanglab/catkin_ws/src/gimbal/Image/2022.11.23/Yaw " + "P_%1.5f"%p + "I_%1.5f"%i + "D_%1.5f"%d + "Hz_%0f"%Hz + ".png", bbox_inches='tight')
+		#fig.savefig("/home/wanglab/catkin_ws/src/gimbal/Image/2022.11.23/metro120.png", bbox_inches='tight')
+		fig.savefig("/home/wanglab/catkin_ws/src/gimbal/Image/2022.11.26/Yaw " + "P_%1.5f"%p + "I_%1.5f"%i + "D_%1.5f"%d + ".png", bbox_inches='tight')
 		#fig.savefig("/home/wanglab/catkin_ws/src/gimbal/Image/2022.11.18/sleeptime%1.7f"%self.sleep_time + ".png", bbox_inches='tight')
 		self.flag_yaw_graph = 1
 
@@ -195,9 +192,9 @@ class tracking_apriltag(object):
 
 		center_u = self.Position_predicted_image[0]
 		center_v = self.Position_predicted_image[1]
-		f = 1449
+		f = 1666
 		z = self.Position_predicted_camera[2]
-		Length_Tag_world = 0.035
+		Length_Tag_world = 0.043
 
 		Length_Tag_image = f * Length_Tag_world / z
 		alpha = 1.2
@@ -272,11 +269,14 @@ class tracking_apriltag(object):
 
 				self.Position_predicter_image(Position_now_image)
 				self.pixel_error()
+
+				self.yaw_pid_controller()
 				
 				self.Position_old_image = Position_now_image
 		else:
 			# init
 			self.yaw_input_pwm = 60.156
+			self.yaw.ChangeDutyCycle(self.yaw_input_pwm)
 			self.yaw_error = [0.00, 0.00, 0.00]
 
 			self.Position_old_image = [0, 0, 0]
@@ -286,7 +286,9 @@ class tracking_apriltag(object):
 
 
 
-	def yaw_pid_controller(self,event=None):
+	#def yaw_pid_controller(self,event=None):
+	def yaw_pid_controller(self):
+
 		P = self.yaw_P
 		I = self.yaw_I
 		D = self.yaw_D
@@ -338,7 +340,6 @@ class tracking_apriltag(object):
 		error_yaw = (640 - self.Position_predicted_image[0])
 		safe_pix = 0
 		# tolerance of pixel
-
 		if -safe_pix <= error_yaw <= safe_pix:
 			self.yaw_error[0] = 0
 		else:
@@ -355,7 +356,7 @@ class tracking_apriltag(object):
 
 if __name__ == "__main__":
 	ts = tracking_apriltag()
-	rospy.Timer(rospy.Duration(1.0/500), ts.yaw_pid_controller)
+	#rospy.Timer(rospy.Duration(1.0/500), ts.yaw_pid_controller)
 	rospy.Timer(rospy.Duration(1.0/50), ts.timer)
 	rospy.spin()
 

@@ -1,29 +1,17 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-                                                                    
-#pwm: 4.5 7.226 7.618 10.742
-
-
+# 35.743 ~ 59.179 -- 61.133 ~ 86.523
 import time
 import RPi.GPIO as GPIO
 
-pitch_pin = 32
-yaw_pin = 33
-
-
-
 def main():
-
+	pitch_pin = 32
 
 	GPIO.setmode(GPIO.BOARD)
 	GPIO.setup(pitch_pin, GPIO.OUT, initial=GPIO.HIGH)
-	pitch = GPIO.PWM(pitch_pin, 50)
-	GPIO.setup(yaw_pin, GPIO.OUT, initial=GPIO.HIGH)
-	yaw = GPIO.PWM(yaw_pin, 50)
+	pitch = GPIO.PWM(pitch_pin, 400)
 
-	pitch.start(7.44)
-	#pitch.start(7)
-	#time.sleep(0.0000001)
+	pitch.start(59.179)
 	time.sleep(2)
 	pitch.stop()
 	GPIO.cleanup()
