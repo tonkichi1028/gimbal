@@ -38,6 +38,6 @@
     <param name="autosize" value="true" />
   </node>
 
-  <node name="masking_image" pkg="gimbal" type="yaw_tuning.py" output="screen"/>
+  <node name="masking_image" pkg="gimbal" type="gimbal1.py" output="screen"/>
 
 </launch>

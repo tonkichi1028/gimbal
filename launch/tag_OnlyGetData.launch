@@ -8,7 +8,7 @@
     <param name="camera_frame_id" value="usb_cam" />
     <param name="io_method" value="mmap"/>
     <param name="framerate" value="30" />
-    <param name="camera_info_url" value="package://gimbal/config/gim1_x1.yaml"/>
+    <param name="camera_info_url" value="package://gimbal/config/gim3_x1.yaml"/>
   </node>
 
   <arg name="launch_prefix" default="" /> <!-- set to value="gdbserver localhost:10000" for remote debugging -->
@@ -38,6 +38,6 @@
     <param name="autosize" value="true" />
   </node>
 
-  <node name="masking_image" pkg="gimbal" type="yaw_tuning.py" output="screen"/>
+  <node name="masking_image" pkg="gimbal" type="tag_OnlyGetData.py" output="screen"/>
 
 </launch>
