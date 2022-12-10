@@ -55,7 +55,7 @@ class tracking_apriltag(object):
 		self.data = []
 		self.TagPosCamera_data = [["time"],["x"],["y"],["z"]]
 
-		self.save_time = 3
+		self.save_time = 1000
 
 
 

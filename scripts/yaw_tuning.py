@@ -75,13 +75,11 @@ class tracking_apriltag(object):
 		# data
 		self.data = []
 		self.TagPosImg_data = [["time"],["image_u"],["image_v"]]
-		self.pwm_data = [["time"],["pwm_pitch"],["time"],["pwm_yaw"]]
-		self.error_data = [["time"],["error0"]]
 
 		# yaw PID
-		self.yaw_P = 0.053
-		self.yaw_I = 0.000#1
-		self.yaw_D = 0.00#3
+		self.yaw_P = 0.055
+		self.yaw_I = 0.0002
+		self.yaw_D = 0.003
 
 		self.save_time = 7
 
@@ -97,7 +95,7 @@ class tracking_apriltag(object):
 			if self.flag_yaw_graph == 0:
 				self.get_yaw_graph()
 				# get_data
-				#self.get_data()
+				self.get_data()
 		
 
 
@@ -107,11 +105,9 @@ class tracking_apriltag(object):
 		i = self.yaw_I
 		d = self.yaw_D
 		
-		f = open('/home/wanglab/catkin_ws/src/gimbal/data/2022.11.21/Yaw ' + 'P_%1.5f'%p + 'I_%1.5f'%i + 'D_%1.5f'%d + 'fix.csv', 'w')
+		f = open('/home/wanglab/catkin_ws/src/gimbal/data/2022.12.06/Yaw ' + 'P_%1.5f'%p + 'I_%1.5f'%i + 'D_%1.5f'%d + '.csv', 'w')
 
 		self.data.extend(self.TagPosImg_data)
-		self.data.extend(self.pwm_data)
-		self.data.extend(self.error_data)
 		data_all = self.data
 		writer = csv.writer(f)
 
@@ -145,7 +141,7 @@ class tracking_apriltag(object):
 		fig.tight_layout()
 
 		#fig.savefig("/home/wanglab/catkin_ws/src/gimbal/Image/2022.11.23/metro120.png", bbox_inches='tight')
-		fig.savefig("/home/wanglab/catkin_ws/src/gimbal/Image/2022.11.26/Yaw " + "P_%1.5f"%p + "I_%1.5f"%i + "D_%1.5f"%d + ".png", bbox_inches='tight')
+		fig.savefig("/home/wanglab/catkin_ws/src/gimbal/Image/2022.12.06/Yaw " + "P_%1.5f"%p + "I_%1.5f"%i + "D_%1.5f"%d + ".png", bbox_inches='tight')
 		#fig.savefig("/home/wanglab/catkin_ws/src/gimbal/Image/2022.11.18/sleeptime%1.7f"%self.sleep_time + ".png", bbox_inches='tight')
 		self.flag_yaw_graph = 1
 
@@ -192,12 +188,12 @@ class tracking_apriltag(object):
 
 		center_u = self.Position_predicted_image[0]
 		center_v = self.Position_predicted_image[1]
-		f = 1666
+		f = 1581
 		z = self.Position_predicted_camera[2]
 		Length_Tag_world = 0.043
 
 		Length_Tag_image = f * Length_Tag_world / z
-		alpha = 1.2
+		alpha = 1.1
 		
 		mask0_u0 = center_u - Length_Tag_image * alpha 
 		mask0_u1 = center_u + Length_Tag_image * alpha

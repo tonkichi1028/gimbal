@@ -97,7 +97,25 @@ class tracking_apriltag(object):
 		self.TagPosImg_data = [["time"],["Image_u"],["Image_v"]]
 		self.TagPosPreImg_data = [["time"],["ImagePre_u"],["ImagePre_v"]]
 
-		self.save_time = 10
+		self.save_time = 60
+
+
+
+	# Save Data
+	def get_data(self):
+		f = open('/home/wanglab/catkin_ws/src/gimbal/data/2022.12.06/x1.csv', 'w')
+
+		self.data.extend(self.TagPosImg_data)
+		self.data.extend(self.TagPosPreImg_data)
+		data_all = self.data
+		writer = csv.writer(f)
+
+		for data in data_all:
+			writer.writerow(data)
+		f.close()
+		print("finish!!!!\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n")
+		self.flag_data = 1
+
 
 
 	def image_callback(self, ros_image,camera_info):
@@ -133,12 +151,12 @@ class tracking_apriltag(object):
 		mask_image = cv2.rectangle(input_image,(0,int(mask0_v1)),(1280,720),color=0, thickness=-1)
 		mask_image = cv2.rectangle(input_image,(0,0),(int(mask0_u0),720),color=0, thickness=-1)
 		mask_image = cv2.rectangle(input_image,(int(mask0_u1),0),(1280,720),color=0, thickness=-1)
-
+		"""
 		# Point Predicted
 		ppu = self.Position_predicted_image[0]
 		ppv = self.Position_predicted_image[1]
 		mask_image = cv2.circle(input_image,(int(ppu),int(ppv)),5,color=(0,0,255), thickness=-1)
-		
+		"""
 		output_image = self.bridge.cv2_to_imgmsg(np.array(mask_image), "bgr8")
 
 		return output_image
@@ -156,7 +174,7 @@ class tracking_apriltag(object):
 		Length_Tag_world = 0.043
 
 		Length_Tag_image = f * Length_Tag_world / z
-		alpha = 1.1
+		alpha = 1.3
 		
 		mask0_u0 = center_u - Length_Tag_image * alpha 
 		mask0_u1 = center_u + Length_Tag_image * alpha
@@ -309,13 +327,13 @@ class tracking_apriltag(object):
 		"""
 		self.Position_predicted_image[0] = self.Position_now_image.x
 		self.Position_predicted_image[1] = self.Position_now_image.y
-		
+		"""
 		self.Position_predicted_image[0] = self.Position_now_image.x + self.delta_Position_image[0]
 		self.Position_predicted_image[1] = self.Position_now_image.y + self.delta_Position_image[1]
 		"""
 		self.Position_predicted_image[0] = self.Position_now_image.x + self.delta_Position_image[0] + 1/2*(self.delta_Position_image[0] - self.delta_delta_Position_image[0])
 		self.Position_predicted_image[1] = self.Position_now_image.y + self.delta_Position_image[1] + 1/2*(self.delta_Position_image[1] - self.delta_delta_Position_image[1])
-		
+		"""
 		self.delta_delta_Position_image = self.delta_Position_image
 
 	def pixel_error(self):
@@ -355,22 +373,6 @@ class tracking_apriltag(object):
 			if self.flag_data == 0:
 				self.get_data()
 
-
-
-	# Save Data
-	def get_data(self):
-		f = open('/home/wanglab/catkin_ws/src/gimbal/data/2022.11.29/xva1.csv', 'w')
-
-		self.data.extend(self.TagPosImg_data)
-		self.data.extend(self.TagPosPreImg_data)
-		data_all = self.data
-		writer = csv.writer(f)
-
-		for data in data_all:
-			writer.writerow(data)
-		f.close()
-		print("finish!!!!\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n")
-		self.flag_data = 1
 
 
 if __name__ == "__main__":

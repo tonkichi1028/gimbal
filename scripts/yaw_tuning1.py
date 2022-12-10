@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-# PWM : 35.743 ~ 59.179 -- 61.133 ~ 86.523
 
 import rospy
 import sys
@@ -12,6 +11,8 @@ import rosparam
 import yaml
 import time
 import Jetson.GPIO as GPIO
+import csv
+import matplotlib.pyplot as plt
 # msg
 from sensor_msgs.msg import Image, CameraInfo
 from apriltag_ros.msg import AprilTagDetectionArray
@@ -44,44 +45,108 @@ class tracking_apriltag(object):
 
 		# Tag_image
 		self.Position_old_image = [0, 0]
+		self.Position_now_image = [0, 0]
 		self.Position_predicted_image = [0, 0]
 		self.delta_Position_image = [0, 0]
 
 		# gimbal_init
-		pitch_pin = 32
 		yaw_pin = 33
 		GPIO.setmode(GPIO.BOARD)
-		# pitch init
-		GPIO.setup(pitch_pin, GPIO.OUT, initial=GPIO.HIGH)
-		self.pitch = GPIO.PWM(pitch_pin, 400)
-		self.pitch.start(60.156)
-		# yaw init
 		GPIO.setup(yaw_pin, GPIO.OUT, initial=GPIO.HIGH)
 		self.yaw = GPIO.PWM(yaw_pin, 400)
 		self.yaw.start(60.156)
 
-		# pwm_input_value, [0]=t, [1]=t-1, center_value=60.156
-		self.pitch_input_pwm = 60.156
+
+		# pwm_input_value, [0]=t, [1]=t-1, center_value=7.422
 		self.yaw_input_pwm = 60.156
 
 		# error_value_deg, [0]=t, [1]=t-1, [2]=t-2
-		self.pitch_error = [0.00, 0.00, 0.00]
 		self.yaw_error = [0.00, 0.00, 0.00]
 		
 		# flag
 		self.flag_camera = 0
 		self.flag_image = 0
 		self.flag_detection = 0
+		self.flag_yaw_graph = 0
 
-		# Pitch PID
-		self.pitch_P = 0.055
-		self.pitch_I = 0.0006
-		self.pitch_D = 0.0025
+		# Time
+		self.time_start = 0
+		self.time = 0
+
+		# data
+		self.data = []
+		self.TagPosImg_data = [["time"],["image_u"],["image_v"]]
 
 		# yaw PID
 		self.yaw_P = 0.055
-		self.yaw_I = 0.0002
+		self.yaw_I = 0.002
 		self.yaw_D = 0.003
+
+		self.save_time = 700
+
+	def timer(self,event=None):	
+		#TIME
+		if self.time_start == 0:
+			self.time_start = rospy.get_time()
+		else:
+			self.time = rospy.get_time()-self.time_start
+
+		# get_yaw_graph
+		if int(self.time) == self.save_time:
+			if self.flag_yaw_graph == 0:
+				self.get_yaw_graph()
+				# get_data
+				self.get_data()
+		
+
+
+	# Save Data	
+	def get_data(self):
+		p = self.yaw_P
+		i = self.yaw_I
+		d = self.yaw_D
+		
+		f = open('/home/wanglab/catkin_ws/src/gimbal/data/2022.12.08/Yaw ' + 'P_%1.5f'%p + 'I_%1.5f'%i + 'D_%1.5f'%d + '.csv', 'w')
+
+		self.data.extend(self.TagPosImg_data)
+		data_all = self.data
+		writer = csv.writer(f)
+
+		for data in data_all:
+			writer.writerow(data)
+		f.close()
+		print("finish!!!!\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n")
+
+
+
+	# Save Yaw Graph	
+	def get_yaw_graph(self):
+		p = self.yaw_P
+		i = self.yaw_I
+		d = self.yaw_D
+
+		t1 = self.TagPosImg_data[0][1:]
+		u_axis = self.TagPosImg_data[1][1:]
+		fig = plt.figure(linewidth=1)
+
+		ax1 = fig.add_subplot(1, 1, 1)
+		ax1.set_title("P : %1.5f   "%p + "I : %1.5f   "%i + "D : %1.5f"%d, fontsize=16)
+		ax1.set_xlabel('t[s]', fontsize=18)
+		ax1.set_ylabel('u-axis[pix]', fontsize=18)
+		ax1.plot(t1, u_axis, marker='.', label = "response")
+
+		# center line
+		center = 0
+		ax1.axhline(center, ls = "--",color = "black",  label = "center")
+		ax1.legend(loc="upper right")
+		fig.tight_layout()
+
+		#fig.savefig("/home/wanglab/catkin_ws/src/gimbal/Image/2022.11.23/metro120.png", bbox_inches='tight')
+		fig.savefig("/home/wanglab/catkin_ws/src/gimbal/Image/2022.12.08/Yaw " + "P_%1.5f"%p + "I_%1.5f"%i + "D_%1.5f"%d + ".png", bbox_inches='tight')
+		#fig.savefig("/home/wanglab/catkin_ws/src/gimbal/Image/2022.11.18/sleeptime%1.7f"%self.sleep_time + ".png", bbox_inches='tight')
+		self.flag_yaw_graph = 1
+
+		print("\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n")
 
 
 
@@ -115,6 +180,10 @@ class tracking_apriltag(object):
 		return output_image
 
 
+
+
+
+
 	
 	def Wide_Mask(self):
 
@@ -136,9 +205,11 @@ class tracking_apriltag(object):
 
 
 
+
+
 	def Wide_Tag(self,mask0_u0,mask0_u1,mask0_v0,mask0_v1):
 
-		alpha = 4
+		alpha = 2
 		delta_Position_Tag = self.delta_Position_image
 
 		# u
@@ -179,25 +250,34 @@ class tracking_apriltag(object):
 		if len(data_image.detect_positions) >= 1:
 			
 			if self.flag_image == 0:
-				self.Position_old_image = data_image.detect_positions[0]
-				self.flag_image = 1
-			else:
-				Position_now_image = data_image.detect_positions[0]
-				self.Position_predicter_image(Position_now_image)
+				self.Position_now_image = data_image.detect_positions[0]
+				# GetData
+				self.TagPosImg_data[0].append(self.time)
+				self.TagPosImg_data[1].append(640 - self.Position_now_image.x)
+				self.TagPosImg_data[2].append(360 - self.Position_now_image.y)
+
 				self.pixel_error()
-				# controller
-				self.pitch_pid_controller()
 				self.yaw_pid_controller()
 
-				self.Position_old_image = Position_now_image
+				self.Position_old_image = self.Position_now_image
+				self.flag_image = 1
+			else:
+				self.Position_now_image = data_image.detect_positions[0]
+				# GetData
+				self.TagPosImg_data[0].append(self.time)
+				self.TagPosImg_data[1].append(640 - self.Position_now_image.x)
+				self.TagPosImg_data[2].append(360 - self.Position_now_image.y)
+
+				self.Position_predicter_image()
+				self.pixel_error()
+
+				self.yaw_pid_controller()
+				
+				self.Position_old_image = self.Position_now_image
 		else:
 			# init
-			self.pitch_input_pwm = 60.156
-			self.pitch.ChangeDutyCycle(self.pitch_input_pwm)
 			self.yaw_input_pwm = 60.156
 			self.yaw.ChangeDutyCycle(self.yaw_input_pwm)
-
-			self.pitch_error = [0.00, 0.00, 0.00]
 			self.yaw_error = [0.00, 0.00, 0.00]
 
 			self.Position_old_image = [0, 0, 0]
@@ -206,36 +286,10 @@ class tracking_apriltag(object):
 
 
 
-	def pitch_pid_controller(self,event=None):
-		P = self.pitch_P
-		I = self.pitch_I
-		D = self.pitch_D
 
-		P = P*(self.pitch_error[0]-self.pitch_error[1])
-		I = I*self.pitch_error[0]
-		D = D*((self.pitch_error[0]-self.pitch_error[1])-(self.pitch_error[1]-self.pitch_error[2]))
+	#def yaw_pid_controller(self,event=None):
+	def yaw_pid_controller(self):
 
-		self.pitch_input_pwm =  self.pitch_input_pwm + P + I + D
-
-		# commandable area of PWM
-		if self.pitch_input_pwm >= 86.523:
-			self.pitch_input_pwm = 86.523
-			self.pitch.ChangeDutyCycle(self.pitch_input_pwm)
-
-		elif self.pitch_input_pwm <= 35.743:
-			self.pitch_input_pwm = 35.743
-			self.pitch.ChangeDutyCycle(self.pitch_input_pwm)
-
-		else:
-			self.pitch.ChangeDutyCycle(self.pitch_input_pwm)
-
-		# storage of error values
-		self.pitch_error[2] = self.pitch_error[1]
-		self.pitch_error[1] = self.pitch_error[0]
-
-
-
-	def yaw_pid_controller(self,event=None):
 		P = self.yaw_P
 		I = self.yaw_I
 		D = self.yaw_D
@@ -274,25 +328,22 @@ class tracking_apriltag(object):
 
 
 
-	def Position_predicter_image(self,Position_now_image):
-		self.delta_Position_image[0] = Position_now_image.x - self.Position_old_image.x
-		self.delta_Position_image[1] = Position_now_image.y - self.Position_old_image.y
+	def Position_predicter_image(self):
+		self.delta_Position_image[0] = self.Position_now_image.x - self.Position_old_image.x
+		self.delta_Position_image[1] = self.Position_now_image.y - self.Position_old_image.y
 
-		self.Position_predicted_image[0] = Position_now_image.x + self.delta_Position_image[0]
-		self.Position_predicted_image[1] = Position_now_image.y + self.delta_Position_image[1]
+		self.Position_predicted_image[0] = self.Position_now_image.x + self.delta_Position_image[0]
+		self.Position_predicted_image[1] = self.Position_now_image.y + self.delta_Position_image[1]
 
 
 
 	def pixel_error(self):
-		error_pitch = -(360 - self.Position_predicted_image[1])
-		error_yaw = (640 - self.Position_predicted_image[0])
+		if self.flag_image == 1:
+			error_yaw = (640 - self.Position_predicted_image[0])
+		else:
+			error_yaw = (640 - self.Position_now_image.x)
 		safe_pix = 0
 		# tolerance of pixel
-		if -safe_pix <= error_pitch <= safe_pix:
-			self.pitch_error[0] = 0
-		else:
-			self.pitch_error[0] = error_pitch
-
 		if -safe_pix <= error_yaw <= safe_pix:
 			self.yaw_error[0] = 0
 		else:
@@ -302,11 +353,14 @@ class tracking_apriltag(object):
 
 	def cleanup(self):
 		cv2.destroyAllWindows()
-		self.pitch.stop()
 		self.yaw.stop()
-		GPIO.cleanup()		
+		GPIO.cleanup()
+
 
 
 if __name__ == "__main__":
-	tracking_apriltag()
+	ts = tracking_apriltag()
+	#rospy.Timer(rospy.Duration(1.0/500), ts.yaw_pid_controller)
+	rospy.Timer(rospy.Duration(1.0/50), ts.timer)
 	rospy.spin()
+

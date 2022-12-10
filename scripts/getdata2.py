@@ -12,6 +12,7 @@ import rosparam
 import yaml
 import time
 import Jetson.GPIO as GPIO
+import csv
 # msg
 from sensor_msgs.msg import Image, CameraInfo
 from apriltag_ros.msg import AprilTagDetectionArray
@@ -44,13 +45,16 @@ class tracking_apriltag(object):
 
 		# Tag_image
 		self.Position_old_image = [0, 0]
+		self.Position_now_image = [0, 0]
 		self.Position_predicted_image = [0, 0]
 		self.delta_Position_image = [0, 0]
+		self.delta_delta_Position_image = [0, 0]
 
 		# gimbal_init
 		pitch_pin = 32
 		yaw_pin = 33
 		GPIO.setmode(GPIO.BOARD)
+
 		# pitch init
 		GPIO.setup(pitch_pin, GPIO.OUT, initial=GPIO.HIGH)
 		self.pitch = GPIO.PWM(pitch_pin, 400)
@@ -72,6 +76,7 @@ class tracking_apriltag(object):
 		self.flag_camera = 0
 		self.flag_image = 0
 		self.flag_detection = 0
+		self.flag_data = 0
 
 		# Pitch PID
 		self.pitch_P = 0.055
@@ -80,8 +85,34 @@ class tracking_apriltag(object):
 
 		# yaw PID
 		self.yaw_P = 0.055
-		self.yaw_I = 0.0002
+		self.yaw_I = 0.0001
 		self.yaw_D = 0.003
+
+		# Time
+		self.time_start = 0
+		self.time = 0
+
+		# data
+		self.data = []
+		self.TagPosImg_data = [["time"],["Image_u"],["Image_v"],["area"]]
+
+		self.save_time = 60
+
+
+
+	# Save Data
+	def get_data(self):
+		f = open('/home/wanglab/catkin_ws/src/gimbal/data/2022.12.08/AreaFixMetroFix.csv', 'w')
+
+		self.data.extend(self.TagPosImg_data)
+		data_all = self.data
+		writer = csv.writer(f)
+
+		for data in data_all:
+			writer.writerow(data)
+		f.close()
+		print("finish!!!!\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n")
+		self.flag_data = 1
 
 
 
@@ -103,50 +134,65 @@ class tracking_apriltag(object):
 
 	def image_process(self, input_image):
 		mask0_u0,mask0_u1,mask0_v0,mask0_v1 = self.Wide_Mask()
-		mask0_u0,mask0_u1,mask0_v0,mask0_v1 = self.Wide_Tag(mask0_u0,mask0_u1,mask0_v0,mask0_v1)
+		#mask0_u0,mask0_u1,mask0_v0,mask0_v1 = self.Wide_Tag(mask0_u0,mask0_u1,mask0_v0,mask0_v1)
 
 		mask_image = cv2.rectangle(input_image,(0,0),(1280,int(mask0_v0)),color=0, thickness=-1)
 		mask_image = cv2.rectangle(input_image,(0,int(mask0_v1)),(1280,720),color=0, thickness=-1)
 		mask_image = cv2.rectangle(input_image,(0,0),(int(mask0_u0),720),color=0, thickness=-1)
 		mask_image = cv2.rectangle(input_image,(int(mask0_u1),0),(1280,720),color=0, thickness=-1)
-		
+		"""
+		# Point Predicted
+		ppu = self.Position_predicted_image[0]
+		ppv = self.Position_predicted_image[1]
+		mask_image = cv2.circle(input_image,(int(ppu),int(ppv)),5,color=(0,0,255), thickness=-1)
+		"""
 		output_image = self.bridge.cv2_to_imgmsg(np.array(mask_image), "bgr8")
 
 		return output_image
 
 
+
+
 	
 	def Wide_Mask(self):
-
 		center_u = self.Position_predicted_image[0]
 		center_v = self.Position_predicted_image[1]
+
 		f = 1581
 		z = self.Position_predicted_camera[2]
 		Length_Tag_world = 0.043
 
 		Length_Tag_image = f * Length_Tag_world / z
-		alpha = 1.1
-		
+		alpha = 1.3
+		"""
 		mask0_u0 = center_u - Length_Tag_image * alpha 
 		mask0_u1 = center_u + Length_Tag_image * alpha
 		mask0_v0 = center_v - Length_Tag_image * alpha
 		mask0_v1 = center_v + Length_Tag_image * alpha
+		"""
+		mask0_u0 = center_u - 80 
+		mask0_u1 = center_u + 80
+		mask0_v0 = center_v - 80
+		mask0_v1 = center_v + 80
+
+		# GetData
+		self.TagPosImg_data[0].append(self.time)
+		self.TagPosImg_data[1].append(self.Position_now_image.x)
+		self.TagPosImg_data[2].append(self.Position_now_image.y)
+		self.TagPosImg_data[3].append((mask0_u1-mask0_u0)*(mask0_v1-mask0_v0))
 	
 		return mask0_u0,mask0_u1,mask0_v0,mask0_v1
 
 
 
 	def Wide_Tag(self,mask0_u0,mask0_u1,mask0_v0,mask0_v1):
-
 		alpha = 4
 		delta_Position_Tag = self.delta_Position_image
-
 		# u
 		if self.delta_Position_image[0] >= 0:
 			mask0_u1 = mask0_u1 + self.delta_Position_image[0]*alpha
 		else:
 			mask0_u0 = mask0_u0 + self.delta_Position_image[0]*alpha
-
 		# v
 		if self.delta_Position_image[1] >= 0:
 			mask0_v1 = mask0_v1 + self.delta_Position_image[1]*alpha
@@ -182,14 +228,15 @@ class tracking_apriltag(object):
 				self.Position_old_image = data_image.detect_positions[0]
 				self.flag_image = 1
 			else:
-				Position_now_image = data_image.detect_positions[0]
-				self.Position_predicter_image(Position_now_image)
+				self.Position_now_image = data_image.detect_positions[0]
+
+				self.Position_predicter_image()
 				self.pixel_error()
 				# controller
-				self.pitch_pid_controller()
-				self.yaw_pid_controller()
+				#self.pitch_pid_controller()
+				#self.yaw_pid_controller()
 
-				self.Position_old_image = Position_now_image
+				self.Position_old_image = self.Position_now_image
 		else:
 			# init
 			self.pitch_input_pwm = 60.156
@@ -274,14 +321,20 @@ class tracking_apriltag(object):
 
 
 
-	def Position_predicter_image(self,Position_now_image):
-		self.delta_Position_image[0] = Position_now_image.x - self.Position_old_image.x
-		self.delta_Position_image[1] = Position_now_image.y - self.Position_old_image.y
-
-		self.Position_predicted_image[0] = Position_now_image.x + self.delta_Position_image[0]
-		self.Position_predicted_image[1] = Position_now_image.y + self.delta_Position_image[1]
-
-
+	def Position_predicter_image(self):
+		self.delta_Position_image[0] = self.Position_now_image.x - self.Position_old_image.x
+		self.delta_Position_image[1] = self.Position_now_image.y - self.Position_old_image.y
+		"""
+		self.Position_predicted_image[0] = self.Position_now_image.x
+		self.Position_predicted_image[1] = self.Position_now_image.y
+		"""
+		self.Position_predicted_image[0] = self.Position_now_image.x + self.delta_Position_image[0]
+		self.Position_predicted_image[1] = self.Position_now_image.y + self.delta_Position_image[1]
+		"""
+		self.Position_predicted_image[0] = self.Position_now_image.x + self.delta_Position_image[0] + 1/2*(self.delta_Position_image[0] - self.delta_delta_Position_image[0])
+		self.Position_predicted_image[1] = self.Position_now_image.y + self.delta_Position_image[1] + 1/2*(self.delta_Position_image[1] - self.delta_delta_Position_image[1])
+		"""
+		self.delta_delta_Position_image = self.delta_Position_image
 
 	def pixel_error(self):
 		error_pitch = -(360 - self.Position_predicted_image[1])
@@ -307,6 +360,23 @@ class tracking_apriltag(object):
 		GPIO.cleanup()		
 
 
+
+	def timer(self,event=None):	
+		# TIME
+		if self.time_start == 0:
+			self.time_start = rospy.get_time()
+		else:
+			self.time = rospy.get_time()-self.time_start
+
+		# get_data
+		if int(self.time) == self.save_time:
+			if self.flag_data == 0:
+				self.get_data()
+
+
+
 if __name__ == "__main__":
-	tracking_apriltag()
+	ts = tracking_apriltag()
+	rospy.Timer(rospy.Duration(1.0/100), ts.timer)
 	rospy.spin()
+
